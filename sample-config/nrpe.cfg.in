@@ -11,6 +11,15 @@
 #############################################################################
 
 
+# NASTY META CHARACTERS
+# List of standard characters and escaped control characters that will force
+# an error if passed as arguments.  Added newline (\n) to resolve remote
+# execution vuln: http://seclists.org/fulldisclosure/2014/Apr/240
+
+nasty_chars=\n|`&><'\\[]{};
+
+
+
 # LOG FACILITY
 # The syslog facility that should be used for logging purposes.
 

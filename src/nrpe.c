@@ -81,6 +81,9 @@ char    *nrpe_user=NULL;
 char    *nrpe_group=NULL;
 
 char    *allowed_hosts=NULL;
+char 	*nasty_chars=NASTY_METACHARS;
+char 	*translate_escapes(char *nasties);
+
 
 char    *pid_file=NULL;
 int     wrote_pid_file=FALSE;
@@ -548,6 +551,12 @@ int read_config_file(char *filename){
 				allowed_hosts=strdup(varvalue);
 				parse_allowed_hosts(allowed_hosts);
 		}
+		
+		else if(!strcmp(varname,"nasty_chars")) {
+			syslog(LOG_ERR,"Nasties from config: %s ",varvalue);
+			nasty_chars=translate_escapes(strdup(varvalue));
+		}
+		
 		else if(strstr(input_line,"command[")){
 			temp_buffer=strtok(varname,"[");
 			temp_buffer=strtok(NULL,"]");
@@ -631,7 +640,53 @@ int read_config_file(char *filename){
 
 	return OK;
 	}
+char *translate_escapes(char *nasties) {
+	char *input=nasties;
+	char *output=nasties;
+	
+	while (*input != '\0')
+	{
+		if (*input == '\\') {
+			input++;
+			switch (*input)
+			{
+				case '\\':
+					break;
 
+				case 'r':
+					*output = '\r';
+					syslog(LOG_ERR,"\\n = \\%c", *output);
+					break;
+
+				case 'n':
+					*output = '\n';
+					break;
+
+				case 't':
+					*output = '\t';
+					break;
+
+				case 'v':
+					*output = '\v';
+					break;
+
+				case 'a':
+					*output = '\a';
+					break;
+				default:
+					syslog(LOG_ERR,"Unrecognized escape sequence: \\%c in config file.", *input);
+					break;
+			}
+		} else {
+			*output=*input;
+		}
+		input++;
+		output++;
+	}
+	*output = '\0';
+	syslog(LOG_ERR,"Escaped nasties: %s", nasties);
+	return nasties;	
+}
 
 /* process all config files in a specific config directory (with directory recursion) */
 int read_config_dir(char *dirname){
@@ -2018,10 +2073,12 @@ int contains_nasty_metachars(char *str){
 	if(str==NULL)
 		return FALSE;
 	
-	result=strcspn(str,NASTY_METACHARS);
-	if(result!=strlen(str))
+	result=strcspn(str,nasty_chars);
+	
+	if(result!=strlen(str)) {
+		syslog(LOG_ERR,"Error: nasty meta detected = %c",str[result]);
 		return TRUE;
-
+	}
 	return FALSE;
         }
 
